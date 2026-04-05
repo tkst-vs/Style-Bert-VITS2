@@ -9,7 +9,6 @@ from numpy.typing import NDArray
 
 from style_bert_vits2.constants import Languages
 from style_bert_vits2.nlp import bert_models, onnx_bert_models
-from style_bert_vits2.nlp.japanese.g2p import text_to_sep_kata
 from style_bert_vits2.utils import get_onnx_device_options
 
 
@@ -40,12 +39,6 @@ def extract_bert_feature(
 
     import torch
 
-    # 各単語が何文字かを作る `word2ph` を使う必要があるので、読めない文字は必ず無視する
-    # でないと `word2ph` の結果とテキストの文字数結果が整合性が取れない
-    text = "".join(text_to_sep_kata(text, raise_yomi_error=False)[0])
-    if assist_text:
-        assist_text = "".join(text_to_sep_kata(assist_text, raise_yomi_error=False)[0])
-
     if device == "cuda" and not torch.cuda.is_available():
         device = "cpu"
     model = bert_models.load_model(Languages.JP, device_map=device)
@@ -67,7 +60,9 @@ def extract_bert_feature(
             style_res = torch.cat(style_res["hidden_states"][-3:-2], -1)[0].cpu()
             style_res_mean = style_res.mean(0)
 
-    assert len(word2ph) == len(text) + 2, text
+    assert len(word2ph) == res.shape[0], (
+        f"word2ph length ({len(word2ph)}) != BERT output length ({res.shape[0]}), text: {text}"
+    )
     word2phone = word2ph
     phone_level_feature = []
     for i in range(len(word2phone)):
@@ -106,12 +101,6 @@ def extract_bert_feature_onnx(
     Returns:
         NDArray[Any]: BERT の特徴量
     """
-
-    # 各単語が何文字かを作る `word2ph` を使う必要があるので、読めない文字は必ず無視する
-    # でないと `word2ph` の結果とテキストの文字数結果が整合性が取れない
-    text = "".join(text_to_sep_kata(text, raise_yomi_error=False)[0])
-    if assist_text:
-        assist_text = "".join(text_to_sep_kata(assist_text, raise_yomi_error=False)[0])
 
     # トークナイザーとモデルの読み込み
     tokenizer = onnx_bert_models.load_tokenizer(Languages.JP)
@@ -166,7 +155,9 @@ def extract_bert_feature_onnx(
         style_res = io_binding.get_outputs()[0].numpy()
         style_res_mean = np.mean(style_res, axis=0)
 
-    assert len(word2ph) == len(text) + 2, text
+    assert len(word2ph) == res.shape[0], (
+        f"word2ph length ({len(word2ph)}) != BERT output length ({res.shape[0]}), text: {text}"
+    )
     word2phone = word2ph
     phone_level_feature = []
     for i in range(len(word2phone)):
