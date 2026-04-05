@@ -39,6 +39,13 @@ def _ensure_tokenizer(repo_id: str, local_path: Path) -> None:
 
         tokenizer = AutoTokenizer.from_pretrained(repo_id)
         tokenizer.save_pretrained(str(local_path))
+        # save_pretrained が生成する tokenizer.json を削除する。
+        # tokenizer.json が存在すると AutoTokenizer が BertJapaneseTokenizer 等の
+        # 専用トークナイザーではなく汎用の fast tokenizer をロー���してしまい、
+        # 語彙が正��く認識��れない問題が発生する。
+        tokenizer_json = local_path / "tokenizer.json"
+        if tokenizer_json.exists():
+            tokenizer_json.unlink()
 
 
 def download_slm_model():
