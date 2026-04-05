@@ -23,9 +23,20 @@ def download_bert_models():
             _ensure_tokenizer(v["repo_id"], local_path)
 
 
+_TOKENIZER_FILES: dict[str, list[str]] = {
+    "ku-nlp/deberta-v2-large-japanese-char-wwm": [
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+        "vocab.txt",
+    ],
+}
+
+
 def _ensure_tokenizer(repo_id: str, local_path: Path) -> None:
     """トークナイザーファイルが存在しなければダウンロードする。"""
-    required_files = ["tokenizer_config.json", "special_tokens_map.json", "vocab.txt"]
+    required_files = _TOKENIZER_FILES.get(repo_id)
+    if required_files is None:
+        return
     needs_download = not all((local_path / f).exists() for f in required_files)
     if not needs_download:
         return
