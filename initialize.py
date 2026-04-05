@@ -24,28 +24,20 @@ def download_bert_models():
 
 
 def _ensure_tokenizer(repo_id: str, local_path: Path) -> None:
-    """トークナイザーが正しく動作するか検証し、壊れていれば再ダウンロードする。"""
-    try:
-        from transformers import AutoTokenizer
-
-        tokenizer = AutoTokenizer.from_pretrained(str(local_path))
-        # 基本的な動作確認: [UNK] のみが返る場合は壊れている
-        tokens = tokenizer.tokenize("test")
-        if tokens == ["[UNK]"]:
-            raise ValueError("Tokenizer returns only [UNK]")
-    except Exception:
-        logger.info(f"Downloading tokenizer for {repo_id}")
-        from transformers import AutoTokenizer
-
-        tokenizer = AutoTokenizer.from_pretrained(repo_id)
-        tokenizer.save_pretrained(str(local_path))
-        # save_pretrained が生成する tokenizer.json を削除する。
-        # tokenizer.json が存在すると AutoTokenizer が BertJapaneseTokenizer 等の
-        # 専用トークナイザーではなく汎用の fast tokenizer をロー���してしまい、
-        # 語彙が正��く認識��れない問題が発生する。
-        tokenizer_json = local_path / "tokenizer.json"
-        if tokenizer_json.exists():
-            tokenizer_json.unlink()
+    """トークナイザーファイルが存在しなければダウンロードする。"""
+    required_files = ["tokenizer_config.json", "special_tokens_map.json", "vocab.txt"]
+    needs_download = not all((local_path / f).exists() for f in required_files)
+    if not needs_download:
+        return
+    logger.info(f"Downloading tokenizer for {repo_id}")
+    for f in required_files:
+        hf_hub_download(repo_id, f, local_dir=local_path)
+    # tokenizer.json が存在すると AutoTokenizer が BertJapaneseTokenizer 等の
+    # 専用トークナイザーではなく汎用の fast tokenizer をロードしてしまい、
+    # 語彙が正しく認識されない問題が発生するため削除する。
+    tokenizer_json = local_path / "tokenizer.json"
+    if tokenizer_json.exists():
+        tokenizer_json.unlink()
 
 
 def download_slm_model():
