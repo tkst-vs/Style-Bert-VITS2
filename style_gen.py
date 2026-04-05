@@ -12,6 +12,16 @@ def _patched_hf_hub_download(*args, **kwargs):
     return _original_hf_hub_download(*args, **kwargs)
 _hf_hub.hf_hub_download = _patched_hf_hub_download
 
+# PyTorch 2.6 で torch.load の weights_only デフォルトが True に変更されたため、
+# pyannote.audio のチェックポイント読み込みが失敗する問題への対応
+import torch
+_original_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    if "weights_only" not in kwargs:
+        kwargs["weights_only"] = False
+    return _original_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
+
 import numpy as np
 import torch
 from numpy.typing import NDArray
