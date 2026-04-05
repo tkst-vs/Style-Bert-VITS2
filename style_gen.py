@@ -2,6 +2,16 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
+# pyannote.audio が古い use_auth_token API を使うため、
+# 新しい huggingface_hub との互換性パッチを適用する
+import huggingface_hub as _hf_hub
+_original_hf_hub_download = _hf_hub.hf_hub_download
+def _patched_hf_hub_download(*args, **kwargs):
+    if "use_auth_token" in kwargs:
+        kwargs["token"] = kwargs.pop("use_auth_token")
+    return _original_hf_hub_download(*args, **kwargs)
+_hf_hub.hf_hub_download = _patched_hf_hub_download
+
 import numpy as np
 import torch
 from numpy.typing import NDArray
