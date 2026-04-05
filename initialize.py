@@ -18,6 +18,27 @@ def download_bert_models():
             if not Path(local_path).joinpath(file).exists():
                 logger.info(f"Downloading {k} {file}")
                 hf_hub_download(v["repo_id"], file, local_dir=local_path)
+        # トークナイザーが正しくロードできるか確認し、できなければ再ダウンロード
+        if not k.endswith("-onnx"):
+            _ensure_tokenizer(v["repo_id"], local_path)
+
+
+def _ensure_tokenizer(repo_id: str, local_path: Path) -> None:
+    """トークナイザーが正しく動作するか検証し、壊れていれば再ダウンロードする。"""
+    try:
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(str(local_path))
+        # 基本的な動作確認: [UNK] のみが返る場合は壊れている
+        tokens = tokenizer.tokenize("test")
+        if tokens == ["[UNK]"]:
+            raise ValueError("Tokenizer returns only [UNK]")
+    except Exception:
+        logger.info(f"Downloading tokenizer for {repo_id}")
+        from transformers import AutoTokenizer
+
+        tokenizer = AutoTokenizer.from_pretrained(repo_id)
+        tokenizer.save_pretrained(str(local_path))
 
 
 def download_slm_model():
